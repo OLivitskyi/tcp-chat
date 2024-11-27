@@ -1,0 +1,43 @@
+2024/11/27 14:53:46 Server started on port 8989
+2024/11/27 14:54:14 Client connected: Oleg
+2024/11/27 14:55:38 Client disconnected: Oleg
+2024/11/27 15:09:41 Server started on port 8989Í
+2024/11/27 15:10:01 Client disconnected: 
+2024/11/27 15:15:00 Server started on port 8989
+2024/11/27 15:15:17 Client connected: Oleg
+2024/11/27 15:15:28 Client connected: Artur
+2024/11/27 15:15:31 Message from Artur: Hi
+2024/11/27 15:15:40 Message from Oleg: Hello
+2024/11/27 15:15:48 Message from Artur: How are you
+2024/11/27 15:15:53 Message from Oleg: Fine and you?
+2024/11/27 15:16:08 Client connected: Pipka
+2024/11/27 15:17:37 Client disconnected: Oleg
+2024/11/27 15:17:42 Client disconnected: 
+2024/11/27 15:17:58 Client disconnected: 
+2024/11/27 15:19:29 Client disconnected: Artur
+2024/11/27 15:19:31 Client disconnected: Pipka
+2024/11/27 15:31:07 Server started on port 8989
+2024/11/27 15:31:35 Client connected: Oleg
+2024/11/27 15:31:45 Client connected: Artur
+2024/11/27 15:31:51 Message from Artur: Hello
+2024/11/27 15:31:56 Message from Oleg: Hi
+2024/11/27 15:32:02 Message from Artur: How are you
+2024/11/27 15:32:08 Message from Oleg: Fine
+2024/11/27 15:32:13 Message from Oleg: and you?
+2024/11/27 15:32:34 Client connected: Pipka
+2024/11/27 15:35:35 Client disconnected: Pipka
+2024/11/27 15:35:37 Client disconnected: Oleg
+2024/11/27 15:35:39 Client disconnected: Artur
+2024/11/27 15:43:23 Server started on port 8989
+2024/11/27 15:44:11 Client connected: Oleg
+2024/11/27 15:44:21 Client connected: Tada
+2024/11/27 15:44:24 Message from Tada: sssss
+2024/11/27 15:44:27 Message from Oleg: fdfd
+2024/11/27 15:44:37 Client connected: Pipka
+2024/11/27 15:44:47 Client connected: Ahoi
+2024/11/27 15:45:04 Message from Ahoi: Teeeest
+2024/11/27 15:45:11 Message from Pipka: Teeeeeeee
+2024/11/27 15:45:22 Client disconnected: Pipka
+2024/11/27 15:45:24 Client disconnected: Oleg
+2024/11/27 15:45:25 Client disconnected: Tada
+2024/11/27 15:45:27 Client disconnected: Ahoi
