@@ -1,0 +1,6 @@
+*.log
+
+**/*.log
+
+/server.log
+/server/**/*.log

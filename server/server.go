@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"tcp-chat/utils"
@@ -16,7 +18,7 @@ var clients = make(map[net.Conn]string)
 var messageHistory []string
 var mutex = sync.Mutex{}
 
-func StartServer(port string) {
+func StartServer(port string, stopCh chan bool) {
 	utils.InitLogger()
 	defer utils.CloseLogger()
 
@@ -29,40 +31,51 @@ func StartServer(port string) {
 	defer listener.Close()
 
 	fmt.Printf("Server is running on port %s...\n", port)
-	utils.LogMessage(fmt.Sprintf("Server started on port %s", port))
+	utils.LogMessage(fmt.Sprintf("Server is running on port %s...", port))
+
+	go func() {
+		<-stopCh
+		fmt.Println("Shutting down server...")
+		utils.LogMessage("Shutting down server...")
+		listener.Close()
+	}()
 
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				return
+			}
 			fmt.Printf("Error accepting connection: %v\n", err)
 			utils.LogMessage(fmt.Sprintf("Error accepting connection: %v", err))
 			continue
 		}
-
 		go handleClient(conn)
 	}
 }
 
 func handleClient(conn net.Conn) {
 	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
 		mutex.Lock()
 		name := clients[conn]
 		delete(clients, conn)
 		mutex.Unlock()
-
 		broadcast(fmt.Sprintf("%s has left the chat.\n", name), nil)
-		utils.LogMessage(fmt.Sprintf("Client disconnected: %s", name))
-		conn.Close()
 	}()
+
+	conn.SetReadDeadline(time.Now().Add(5 * time.Minute))
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Minute))
 
 	mutex.Lock()
 	if len(clients) >= 10 {
 		mutex.Unlock()
 		conn.Write([]byte("Server is full. Please try again later.\n"))
-		utils.LogMessage("Connection rejected: chat is full.")
-		conn.Close()
 		return
 	}
+	clients[conn] = ""
 	mutex.Unlock()
 
 	sendWelcomeMessage(conn)
@@ -70,9 +83,8 @@ func handleClient(conn net.Conn) {
 	name, _ := bufio.NewReader(conn).ReadString('\n')
 	name = strings.TrimSpace(name)
 
-	if name == "" || len(name) > 20 || strings.Contains(name, " ") {
+	if name == "" || len(name) > 20 {
 		conn.Write([]byte("Invalid name. Connection closed.\n"))
-		conn.Close()
 		return
 	}
 
@@ -80,17 +92,18 @@ func handleClient(conn net.Conn) {
 	clients[conn] = name
 	mutex.Unlock()
 
-	utils.LogMessage(fmt.Sprintf("Client connected: %s", name))
+	broadcast(fmt.Sprintf("%s has joined the chat!\n", name), conn)
 
 	conn.Write([]byte("Loading chat history...\n"))
 	sendHistory(conn)
 
-	broadcast(fmt.Sprintf("%s has joined the chat!\n", name), conn)
-
 	for {
 		message, err := bufio.NewReader(conn).ReadString('\n')
 		if err != nil {
-			break
+			if strings.Contains(err.Error(), "use of closed network connection") || strings.Contains(err.Error(), "connection reset by peer") {
+				return
+			}
+			return
 		}
 
 		message = strings.TrimSpace(message)
@@ -99,32 +112,49 @@ func handleClient(conn net.Conn) {
 		}
 
 		message = filterMessage(message)
-
-		saveMessage(fmt.Sprintf("[%s][%s]: %s", time.Now().Format("2006-01-02 15:04:05"), name, message))
-		broadcast(fmt.Sprintf("[%s][%s]: %s\n", time.Now().Format("2006-01-02 15:04:05"), name, message), conn)
-		utils.LogMessage(fmt.Sprintf("Message from %s: %s", name, message))
+		formattedMessage := fmt.Sprintf("[%s][%s]: %s", time.Now().Format("2006-01-02 15:04:05"), name, message)
+		saveMessage(formattedMessage)
+		broadcast(fmt.Sprintf("%s\n", formattedMessage), conn)
 	}
 }
 
 func sendWelcomeMessage(conn net.Conn) {
-	conn.Write([]byte(loadWelcomeMessage()))
+	message := loadWelcomeMessage()
+
+	if !strings.HasSuffix(message, "\n") {
+		message += "\n"
+	}
+
+	conn.Write([]byte(message))
+	utils.LogMessage("Sent welcome message to client")
 }
 
 func loadWelcomeMessage() string {
-	data, err := os.ReadFile("welcome.txt")
+	_, filename, _, _ := runtime.Caller(0)
+	path := filepath.Join(filepath.Dir(filename), "welcome.txt")
+
+	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Printf("Error reading welcome message: %v\n", err)
+		utils.LogMessage(fmt.Sprintf("Error reading welcome message: %v", err))
 		return "Welcome to TCP-Chat!"
 	}
-	return string(data)
+
+	return strings.TrimSpace(string(data))
 }
 
 func sendHistory(conn net.Conn) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	log.Printf("Sending chat history to client: %v", conn.RemoteAddr())
+
 	for _, msg := range messageHistory {
-		conn.Write([]byte(msg + "\n"))
+		_, err := conn.Write([]byte(msg + "\n"))
+		if err != nil {
+			log.Printf("Error sending history to client %v: %v", conn.RemoteAddr(), err)
+			return
+		}
 	}
 }
 
@@ -132,15 +162,24 @@ func broadcast(message string, sender net.Conn) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	var disconnectedClients []net.Conn
+
 	for client := range clients {
-		if client != sender {
-			_, err := client.Write([]byte(message))
-			if err != nil {
-				log.Printf("Error sending message to client %s: %v\n", clients[client], err)
-				client.Close()
-				delete(clients, client)
+		if client == sender {
+			continue
+		}
+		_, err := client.Write([]byte(message + "\n"))
+		if err != nil {
+			if strings.Contains(err.Error(), "broken pipe") {
+				disconnectedClients = append(disconnectedClients, client)
+				continue
 			}
 		}
+	}
+
+	for _, client := range disconnectedClients {
+		client.Close()
+		delete(clients, client)
 	}
 }
 

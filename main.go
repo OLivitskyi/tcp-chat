@@ -16,6 +16,6 @@ func main() {
 	if len(os.Args) > 2 {
 		log.Fatalf("[USAGE]: ./TCPChat $port")
 	}
-
-	server.StartServer(port)
+	stopCh := make(chan bool)
+	server.StartServer(port, stopCh)
 }

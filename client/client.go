@@ -26,17 +26,41 @@ func main() {
 
 	fmt.Println("Connected to the server.")
 
+	displayFullWelcomeMessage(conn)
+
 	go readMessages(conn)
+
 	writeMessages(conn)
 }
 
-func readMessages(conn net.Conn) {
+func displayFullWelcomeMessage(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+
 	for {
-		message, err := bufio.NewReader(conn).ReadString('\n')
+		message, err := reader.ReadString('\n')
+		if err != nil {
+			log.Println("Disconnected from server while receiving welcome message.")
+			return
+		}
+
+		fmt.Print(message)
+
+		if strings.Contains(message, "[ENTER YOUR NAME]:") {
+			break
+		}
+	}
+}
+
+func readMessages(conn net.Conn) {
+	reader := bufio.NewReader(conn)
+
+	for {
+		message, err := reader.ReadString('\n')
 		if err != nil {
 			log.Println("Disconnected from server.")
 			return
 		}
+
 		fmt.Print(message)
 	}
 }
