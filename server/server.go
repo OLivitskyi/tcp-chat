@@ -18,6 +18,8 @@ var clients = make(map[net.Conn]string)
 var messageHistory []string
 var mutex = sync.Mutex{}
 
+const maxMessageHistory = 100 // Limit message history to prevent memory leak
+
 func StartServer(port string, stopCh chan bool) {
 	utils.InitLogger()
 	defer utils.CloseLogger()
@@ -188,6 +190,10 @@ func saveMessage(message string) {
 	defer mutex.Unlock()
 
 	messageHistory = append(messageHistory, message)
+	// Trim history if it exceeds the limit to prevent memory leak
+	if len(messageHistory) > maxMessageHistory {
+		messageHistory = messageHistory[len(messageHistory)-maxMessageHistory:]
+	}
 }
 
 func filterMessage(message string) string {
